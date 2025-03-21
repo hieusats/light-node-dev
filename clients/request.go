@@ -14,7 +14,13 @@ import (
 // Default timeout in seconds if environment variable is not set
 const DEFAULT_TIMEOUT = 100
 
-func PostRequest[T any, R any](url string, requestData T) (*R, error) {
+// RequestOptions contains options for the request
+type RequestOptions struct {
+	Proxy   string // Proxy URL in format http://user:pass@host:port or socks5://user:pass@host:port
+	Timeout int    // Timeout in seconds
+}
+
+func PostRequest[T any, R any](url string, requestData T, options ...RequestOptions) (*R, error) {
 	client := resty.New()
 
 	// Get timeout from environment variable or use default
@@ -22,6 +28,19 @@ func PostRequest[T any, R any](url string, requestData T) (*R, error) {
 	envTimeout := utils.GetEnv("API_REQUEST_TIMEOUT", "100")
 	if t, err := strconv.Atoi(envTimeout); err == nil {
 		timeout = t
+	}
+
+	// Apply options if provided
+	if len(options) > 0 {
+		// Override timeout if specified in options
+		if options[0].Timeout > 0 {
+			timeout = options[0].Timeout
+		}
+
+		// Set proxy if provided
+		if options[0].Proxy != "" {
+			client.SetProxy(options[0].Proxy)
+		}
 	}
 
 	// Set default headers, timeout
