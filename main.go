@@ -57,6 +57,22 @@ func main() {
 		log.Printf("Key %d - Compressed Public Key: %s, Address: %s", i+1, pubKey, addresses[i])
 	}
 
+	// Lưu public keys và địa chỉ ví vào file publickey.txt
+	file, err := os.Create("publickey.txt")
+	if err != nil {
+		log.Println("Warning: Error creating publickey.txt file: ", err)
+	} else {
+		defer file.Close()
+		for i, pubKey := range pubKeys {
+			_, err := file.WriteString(fmt.Sprintf("Key %d - Compressed Public Key: %s, Address: %s\n", i+1, pubKey, addresses[i]))
+			if err != nil {
+				log.Println("Warning: Error writing to publickey.txt file: ", err)
+				break
+			}
+		}
+		log.Println("Public keys and addresses saved to publickey.txt")
+	}
+
 	// Load proxies
 	proxies, err := utils.LoadProxiesFromFile()
 	if err != nil {
