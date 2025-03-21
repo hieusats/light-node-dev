@@ -132,6 +132,112 @@ go build
 
 Đảm bảo cả hai dịch vụ đều chạy độc lập.
 
+## Hướng dẫn cài đặt và chạy trên Windows
+
+### Cài đặt các công cụ cần thiết
+
+1. **Cài đặt Go**:
+   - Tải Go từ [trang chủ Go](https://golang.org/dl/) cho Windows
+   - Chạy trình cài đặt và làm theo hướng dẫn
+   - Kiểm tra cài đặt bằng cách mở Command Prompt và gõ: `go version`
+
+2. **Cài đặt Rust**:
+   - Tải và chạy [rustup-init.exe](https://www.rust-lang.org/tools/install)
+   - Chọn cài đặt mặc định
+   - Kiểm tra cài đặt bằng cách mở Command Prompt mới và gõ: `rustc --version`
+
+3. **Cài đặt Git**:
+   - Tải Git từ [trang chủ Git](https://git-scm.com/download/win)
+   - Chạy trình cài đặt và làm theo hướng dẫn
+   - Kiểm tra cài đặt bằng cách mở Command Prompt và gõ: `git --version`
+
+4. **Cài đặt bộ công cụ RISC Zero**:
+   - Mở PowerShell với quyền Administrator
+   - Chạy lệnh sau để cài đặt:
+     ```powershell
+     iwr -useb https://risczero.com/install.ps1 | iex
+     rzup install
+     ```
+
+### Cấu hình biến môi trường
+
+Tạo tệp `.env` trong thư mục gốc của dự án với nội dung tương tự như đã mô tả ở trên.
+
+Hoặc cấu hình biến môi trường Windows thông qua PowerShell:
+
+```powershell
+$env:GRPC_URL="grpc.testnet.layeredge.io:9090"
+$env:CONTRACT_ADDR="cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709"
+$env:ZK_PROVER_URL="http://127.0.0.1:3001"
+$env:API_REQUEST_TIMEOUT="100"
+$env:POINTS_API="https://light-node.layeredge.io"
+$env:PRIVATE_KEY="cli-node-private-key"
+```
+
+### Xây dựng và chạy trên Windows
+
+#### Sử dụng PowerShell
+
+1. **Clone repository**:
+   ```powershell
+   git clone https://github.com/hieusats/light-node-dev.git
+   cd light-node-dev
+   ```
+
+2. **Xây dựng và chạy dịch vụ RISC Zero Merkle**:
+   ```powershell
+   cd risc0-merkle-service
+   cargo build
+   cargo run
+   ```
+
+3. **Mở một PowerShell mới và xây dựng Light Node**:
+   ```powershell
+   cd path\to\light-node-dev
+   go build
+   .\light-node.exe
+   ```
+
+#### Sử dụng batch scripts (tùy chọn)
+
+Bạn có thể tạo các batch scripts để đơn giản hóa quá trình:
+
+1. Tạo file `build-risczero.bat`:
+   ```batch
+   @echo off
+   cd risc0-merkle-service
+   cargo build
+   echo RISC Zero Merkle service built successfully
+   ```
+
+2. Tạo file `build-light-node.bat`:
+   ```batch
+   @echo off
+   go build
+   echo Light Node built successfully
+   ```
+
+3. Tạo file `run-all.bat`:
+   ```batch
+   @echo off
+   start cmd /k "cd risc0-merkle-service && cargo run"
+   timeout /t 5
+   start cmd /k ".\light-node.exe"
+   echo Services started
+   ```
+
+### Lưu ý khi chạy trên Windows
+
+1. **Đường dẫn tệp**: Windows sử dụng dấu gạch ngược (`\`) thay vì dấu gạch chéo (`/`) cho đường dẫn tệp. Đảm bảo điều chỉnh đường dẫn phù hợp.
+
+2. **Tường lửa Windows**: Bạn có thể cần cho phép ứng dụng qua tường lửa Windows khi được nhắc.
+
+3. **Quyền Administrator**: Một số thao tác có thể yêu cầu quyền Administrator. Chạy Command Prompt hoặc PowerShell với quyền Administrator nếu cần.
+
+4. **Proxy trên Windows**: Nếu sử dụng proxy, đảm bảo định dạng trong tệp `proxy.txt` là chính xác và không có ký tự đặc biệt không mong muốn.
+
+5. **Lỗi kết nối**: Nếu gặp lỗi kết nối, hãy kiểm tra cấu hình mạng và tường lửa Windows.
+
 ## Ghi nhật ký và giám sát
 
 Light node cung cấp ghi nhật ký chi tiết về các hoạt động của nó. Bạn có thể theo dõi đầu ra nhật ký để theo dõi:
