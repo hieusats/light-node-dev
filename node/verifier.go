@@ -93,13 +93,17 @@ func CollectSampleAndVerify() {
 	cosmosQueryClient := clients.CosmosQueryClient{}
 	err := cosmosQueryClient.Init()
 	if err != nil {
-		log.Fatalf("failed to initialize cosmos query client: %v", err)
+		log.Printf("failed to initialize cosmos query client: %v", err)
+		// Delay và thử lại trong lần gọi Worker tiếp theo
+		return
 	}
 	defer cosmosQueryClient.Close()
 
 	treeIds, err := cosmosQueryClient.ListMerkleTreeIds()
 	if err != nil {
-		log.Fatalf("failed to fetch tree ids: %v", err)
+		log.Printf("failed to fetch tree ids: %v", err)
+		// Delay và thử lại trong lần gọi Worker tiếp theo
+		return
 	}
 
 	if len(treeIds) == 0 {
@@ -180,7 +184,8 @@ func CollectSampleAndVerify() {
 		if receipt != nil {
 			walletAddress, err := utils.GetWalletAddress()
 			if err != nil {
-				log.Fatalf("failed to get wallet address from private key: %v", err)
+				log.Printf("failed to get wallet address from private key: %v", err)
+				continue
 			}
 
 			timestamp := fmt.Sprintf("%d", time.Now().UnixMilli())
@@ -188,7 +193,8 @@ func CollectSampleAndVerify() {
 			fmt.Printf("Signing Message %s\n", msg)
 			signature, err := utils.SignMessage(msg)
 			if err != nil {
-				log.Fatalf("failed to sign message: %v", err)
+				log.Printf("failed to sign message: %v", err)
+				continue
 			}
 
 			err = SubmitVerifiedProof(*walletAddress, *signature, *proof, *receipt, timestamp)
