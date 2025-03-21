@@ -24,13 +24,29 @@ func Worker(ctx context.Context, wg *sync.WaitGroup, id int, proxy string) {
 			return
 		default:
 			fmt.Printf("Worker %d is running with proxy %s...\n", id, proxy)
-			node.CollectSampleAndVerify()
+			node.CollectSampleAndVerify(id, proxy)
 			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
 func main() {
+	// Kiểm tra tham số dòng lệnh
+	if len(os.Args) > 1 && os.Args[1] == "check-proxy" {
+		log.Println("Kiểm tra tất cả các proxy...")
+		results, err := utils.CheckAllProxies()
+		if err != nil {
+			log.Fatalf("Lỗi khi kiểm tra proxy: %v", err)
+		}
+
+		// Hiển thị kết quả
+		log.Println("Kết quả kiểm tra proxy:")
+		for proxy, result := range results {
+			log.Printf("%s: %s", proxy, result)
+		}
+		return
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: Error loading .env file, will try to use wallet.txt")
@@ -108,7 +124,7 @@ func main() {
 		wg.Add(1)
 		proxy := ""
 		if i < len(proxies) {
-			proxy = proxies[i]
+			proxy = utils.FormatProxyURL(proxies[i])
 		}
 		go Worker(ctx, &wg, i+1, proxy)
 		// Add a small delay between starting workers to avoid overwhelming the system

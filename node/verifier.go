@@ -61,39 +61,83 @@ var (
 	stateMutex sync.Mutex
 )
 
-func proveProof(data []string, proof_request string) (*Proof, error) {
-	resp, err := clients.PostRequest[ZKProverPayload, ZKProverResponse](zkProverURL+"/process", ZKProverPayload{
-		Operation:    "prove",
-		Data:         data,
-		ProofRequest: &proof_request,
-		Proof:        nil,
-	})
+func proveProof(data []string, proof_request string, proxy string) (*Proof, error) {
+	// Tạo options với proxy nếu có
+	var options []clients.RequestOptions
+	if proxy != "" {
+		log.Printf("Sử dụng proxy: %s cho yêu cầu proveProof", proxy)
+		options = append(options, clients.RequestOptions{
+			Proxy: proxy,
+		})
+	} else {
+		log.Printf("Không sử dụng proxy cho yêu cầu proveProof")
+	}
+
+	resp, err := clients.PostRequest[ZKProverPayload, ZKProverResponse](
+		zkProverURL+"/process",
+		ZKProverPayload{
+			Operation:    "prove",
+			Data:         data,
+			ProofRequest: &proof_request,
+			Proof:        nil,
+		},
+		options...,
+	)
 	if err != nil {
+		if proxy != "" {
+			log.Printf("Lỗi khi sử dụng proxy %s: %v", proxy, err)
+		}
 		return nil, fmt.Errorf("proof verification error: %v", err)
 	}
 	log.Printf("verification done: %v", resp)
 	return resp.Proof, nil
 }
 
-func verifyProofs(data []string, proof Proof) (*string, *string, error) {
-	resp, err := clients.PostRequest[ZKProverPayload, ZKProverResponse](zkProverURL+"/process", ZKProverPayload{
-		Operation:    "verify",
-		Data:         data,
-		ProofRequest: nil,
-		Proof:        &proof,
-	})
+func verifyProofs(data []string, proof Proof, proxy string) (*string, *string, error) {
+	// Tạo options với proxy nếu có
+	var options []clients.RequestOptions
+	if proxy != "" {
+		log.Printf("Sử dụng proxy: %s cho yêu cầu verifyProofs", proxy)
+		options = append(options, clients.RequestOptions{
+			Proxy: proxy,
+		})
+	} else {
+		log.Printf("Không sử dụng proxy cho yêu cầu verifyProofs")
+	}
+
+	resp, err := clients.PostRequest[ZKProverPayload, ZKProverResponse](
+		zkProverURL+"/process",
+		ZKProverPayload{
+			Operation:    "verify",
+			Data:         data,
+			ProofRequest: nil,
+			Proof:        &proof,
+		},
+		options...,
+	)
 	if err != nil {
+		if proxy != "" {
+			log.Printf("Lỗi khi sử dụng proxy %s: %v", proxy, err)
+		}
 		return nil, nil, fmt.Errorf("proof verification error: %v", err)
 	}
 	log.Printf("verification done: %v\n", resp)
 	return &resp.Receipt, &resp.Root, nil
 }
 
-func CollectSampleAndVerify() {
+func CollectSampleAndVerify(workerID int, proxy string) {
 	cosmosQueryClient := clients.CosmosQueryClient{}
-	err := cosmosQueryClient.Init()
+
+	// Khởi tạo client với proxy nếu có
+	var err error
+	if proxy != "" {
+		err = cosmosQueryClient.InitWithProxy(proxy)
+	} else {
+		err = cosmosQueryClient.Init()
+	}
+
 	if err != nil {
-		log.Printf("failed to initialize cosmos query client: %v", err)
+		log.Printf("Worker %d: failed to initialize cosmos query client: %v", workerID, err)
 		// Delay và thử lại trong lần gọi Worker tiếp theo
 		return
 	}
@@ -167,14 +211,14 @@ func CollectSampleAndVerify() {
 		// Track if verification was successful
 		verificationSuccessful := false
 
-		proof, err := proveProof(tree.Leaves, sample)
+		proof, err := proveProof(tree.Leaves, sample, proxy)
 		if err != nil {
 			log.Printf("failed to prove sample for tree %s: %v", treeId, err)
 			// Continue to the next tree if proving fails
 			continue
 		}
 
-		receipt, rootHash, err := verifyProofs(tree.Leaves, *proof)
+		receipt, rootHash, err := verifyProofs(tree.Leaves, *proof, proxy)
 		if err != nil {
 			log.Printf("failed to verify sample for tree %s: %v", treeId, err)
 			// Continue to the next tree if verification fails
@@ -197,7 +241,7 @@ func CollectSampleAndVerify() {
 				continue
 			}
 
-			err = SubmitVerifiedProof(*walletAddress, *signature, *proof, *receipt, timestamp)
+			err = SubmitVerifiedProofWithProxy(*walletAddress, *signature, *proof, *receipt, timestamp, proxy)
 			if err != nil {
 				log.Printf("Failed to submit verified proof: %v", err)
 				// Continue to the next tree if submission fails
@@ -253,6 +297,11 @@ func GetSleepingTrees() []string {
 }
 
 func SubmitVerifiedProof(walletAddress string, signature string, proof Proof, receipt string, timestamp string) error {
+	// Sử dụng proxy từ CosmosQueryClient
+	return SubmitVerifiedProofWithProxy(walletAddress, signature, proof, receipt, timestamp, "")
+}
+
+func SubmitVerifiedProofWithProxy(walletAddress string, signature string, proof Proof, receipt string, timestamp string, proxy string) error {
 	// Create the proof hash (this appears to be required by the API)
 	// Note: You may need to adjust how proofHash is calculated based on your requirements
 	proofHash := utils.HashString(proof.LeafValue) // Assuming utils.HashString exists
@@ -266,14 +315,29 @@ func SubmitVerifiedProof(walletAddress string, signature string, proof Proof, re
 		Receipt:       receipt,
 	}
 
+	// Tạo options với proxy nếu có
+	var options []clients.RequestOptions
+	if proxy != "" {
+		log.Printf("Sử dụng proxy: %s cho yêu cầu SubmitVerifiedProof", proxy)
+		options = append(options, clients.RequestOptions{
+			Proxy: proxy,
+		})
+	} else {
+		log.Printf("Không sử dụng proxy cho yêu cầu SubmitVerifiedProof")
+	}
+
 	// Make the API request
 	// You may need to adjust the URL based on your environment
 	resp, err := clients.PostRequest[SubmitProofRequest, map[string]interface{}](
 		lightNodePointsAPI+"/api/cli-node/submit-verified-proof",
 		requestBody,
+		options...,
 	)
 
 	if err != nil {
+		if proxy != "" {
+			log.Printf("Lỗi khi sử dụng proxy %s: %v", proxy, err)
+		}
 		return fmt.Errorf("failed to submit verified proof: %v", err)
 	}
 

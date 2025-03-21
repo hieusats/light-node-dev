@@ -66,6 +66,7 @@ type CosmosQueryClient struct {
 	conn        *grpc.ClientConn
 	queryClient wasmtypes.QueryClient
 	config      ClientConfig
+	proxy       string // Proxy URL để sử dụng cho các yêu cầu HTTP
 }
 
 func (cqc *CosmosQueryClient) Init() error {
@@ -90,6 +91,28 @@ func (cqc *CosmosQueryClient) InitWithConfig(config ClientConfig) error {
 	cqc.config = config
 
 	// Connect to gRPC client
+	conn, err := grpc.Dial(cqc.config.GrpcURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("failed to connect to gRPC at %s: %v", cqc.config.GrpcURL, err)
+	}
+
+	cqc.conn = conn
+	cqc.queryClient = wasmtypes.NewQueryClient(conn)
+	return nil
+}
+
+// InitWithProxy initializes the client with a specific proxy
+func (cqc *CosmosQueryClient) InitWithProxy(proxy string) error {
+	// Sử dụng cấu hình mặc định nhưng với proxy
+	globalClientConfig.GrpcURL = utils.GetEnv("GRPC_URL", "grpc.testnet.layeredge.io:9090")
+	globalClientConfig.ContractAddr = utils.GetEnv("CONTRACT_ADDR", "cosmos1ufs3tlq4umljk0qfe8k5ya0x6hpavn897u2cnf9k0en9jr7qarqqt56709")
+	cqc.config = globalClientConfig
+
+	// Lưu proxy để sử dụng trong các yêu cầu HTTP
+	cqc.proxy = proxy
+
+	// Connect to gRPC client
+	// Lưu ý: gRPC không hỗ trợ trực tiếp proxy, chúng ta sẽ sử dụng proxy trong các yêu cầu HTTP
 	conn, err := grpc.Dial(cqc.config.GrpcURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("failed to connect to gRPC at %s: %v", cqc.config.GrpcURL, err)
